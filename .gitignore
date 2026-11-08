@@ -1,0 +1,38 @@
+# PlatformIO build artifacts and libraries
+.pio/
+**/.pio/
+
+# Build and output directories
+build/
+**/build/
+dist/
+**/dist/
+
+# Dependencies and caches
+node_modules/
+**/node_modules/
+.cache/
+**/.cache/
+.firebase/
+**/.firebase/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Local secrets, credentials, and private keys
+secrets.h
+**/secrets.h
+*.key
+
+# Editor and IDE generated configurations
+**/.vscode/c_cpp_properties.json
+**/.vscode/.cortex-debug.registers.state.json
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.orig
+*.log
+

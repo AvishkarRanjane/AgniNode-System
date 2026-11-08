@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() &&
+        exists(/databases/$(db)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role
+        : 'anonymous';
+    }
+
+    function ownsDevice(id) {
+      return role() == 'device' &&
+        get(/databases/$(db)/documents/users/$(request.auth.uid)).data.deviceId == id;
+    }
+
+    function canReadDevice(id) {
+      return role() in ['viewer', 'operator', 'admin'] || ownsDevice(id);
+    }
+
+    match /devices/{id} {
+      allow read: if canReadDevice(id);
+      allow create: if role() == 'admin' || ownsDevice(id);
+      allow update: if role() == 'admin' || ownsDevice(id) ||
+        (role() in ['viewer', 'operator'] &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['ack', 'ackBy', 'ackAt']));
+      allow delete: if role() == 'admin';
+
+      match /commands/{commandId} {
+        allow read: if canReadDevice(id);
+        allow create: if role() in ['operator', 'admin'] &&
+          request.resource.data.keys().hasOnly(['action', 'status', 'createdAt']) &&
+          request.resource.data.action in ['BUZZER_ON', 'BUZZER_OFF'] &&
+          request.resource.data.status == 'pending' &&
+          request.resource.data.createdAt == request.time;
+        allow update: if ownsDevice(id) &&
+          request.resource.data.action == resource.data.action &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.status in
+            ['sent', 'running', 'completed', 'rejected', 'timeout', 'expired', 'failed'] &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status',
+            'updatedAt',
+            'completedAt',
+            'seq',
+            'error',
+            'firmwareVersion',
+            'ackResult',
+            'ackDetail',
+            'buzzerOn',
+            'ssrOn',
+            'armed',
+            'stm32State',
+            'stm32Faults',
+            'mainsClosed',
+            'tripMask'
+          ]);
+        allow delete: if role() == 'admin';
+      }
+
+      match /readings/{readingId} {
+        allow read: if canReadDevice(id);
+        allow create, update: if role() == 'admin' || ownsDevice(id);
+        allow delete: if role() == 'admin';
+      }
+
+      match /alerts/{alertId} {
+        allow read: if canReadDevice(id);
+        allow create: if role() == 'admin' || ownsDevice(id);
+        allow update, delete: if role() == 'admin';
+      }
+
+      match /status/{statusId} {
+        allow read: if canReadDevice(id);
+        allow write: if role() == 'admin' || ownsDevice(id);
+      }
+
+      match /{allSubcollections=**} {
+        allow read: if canReadDevice(id);
+      }
+    }
+
+    match /config/{documentId} {
+      allow read: if signedIn();
+      allow write: if role() == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() &&
+        (request.auth.uid == userId || role() == 'admin');
+      allow update: if role() == 'admin';
+    }
+  }
+}

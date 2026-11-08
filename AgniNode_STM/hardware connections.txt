@@ -1,0 +1,133 @@
+================================================================================
+AGNI-NODE SAFETY FIRMWARE - STM32G0B1RE HARDWARE PIN CONNECTIONS & SPECIFICATION
+Target MCU: STMicroelectronics STM32G0B1RET6 (ARM Cortex-M0+ @ 64 MHz)
+Memory: 512 KB Flash | 144 KB SRAM | 12-bit 2.5 MSPS SAR ADC
+Operating Logic: 3.3V DC (I/O pins 5V-tolerant in digital mode)
+Firmware Framework: STM32Cube HAL + CMSIS (PlatformIO env: agninode_g0b1)
+================================================================================
+
+USER-REPORTED CURRENT WIRING (physically checked by user; not independently measured)
+--------------------------------------------------------------------------------
+Connection             STM32 Pin(s)    Notes
+---------------------- --------------  ------------------------------------------
+SWD 3V3 / GND           3V3 / GND       Debugger power and common ground
+SWD SWCLK / SWDIO       SWCLK / SWDIO   Dedicated SWD header signals
+Temperature sensor      PB9             DHT22 / AM2302 one-wire data
+Smoke sensor AOUT       PA4             Analog output
+Smoke sensor DOUT       PA1             Digital output
+Flame sensor DO         PA2             Digital output
+ZMPT101B voltage OUT    PA0             Conditioned analog output, confirmed 0-3.3V
+Buzzer I/O              PA6             Buzzer control
+RS-485 DI               PB6             Transceiver data input
+RS-485 DE and /RE       PA8             Both control pins connected to PA8
+RS-485 RO               PA3             Transceiver data output
+SSR CH1                 PB0             Control input
+SSR CH2                 PB1             Control input
+
+The low-voltage Vbus monitor is not connected. Firmware reports it unavailable and
+inhibits automatic mains SSR close; manual close remains available. The conditioned
+ZMPT101B signal must be biased and remain within 0-3.3V at PA0; its mains calibration
+must be verified using appropriate isolated test equipment before mains operation.
+
+1. ANALOG SENSOR INPUTS (12-BIT ADC1 VIA TIM3 DMA CIRCULAR SCAN @ 12.8 kHz)
+--------------------------------------------------------------------------------
+STM32 Pin   ADC Channel   Sensor Component        Input Range       Circuit / Calibration Notes
+---------   -----------   ----------------        -----------       ---------------------------
+PA0         ADC_IN0       ZMPT101B AC Voltage     0 - 3.3V Biased   Conditioned mains-voltage waveform input.
+                                                                    Must be biased to the ADC midpoint and
+                                                                    calibrated before mains use.
+
+PA4         ADC_IN4       MQ Smoke Sensor (A0)    0 - 3.3V Analog   Smoke chamber analog concentration.
+                                                                    Alarm ON threshold: >= 2200 counts.
+                                                                    Alarm Clear hysteresis: < 1900 counts.
+
+PA5         ADC_IN5       Line CT (SCT-013-030A)  0 - 3.3V Biased   Line Current (I_L) sensor. 30A = 1V RMS.
+                                                                    Biased to Vref/2 (1.65V) with 10uF filter.
+                                                                    Scanned for RMS, Arc Fault & RCD analysis.
+
+PA7         ADC_IN7       Neutral CT (SCT-013)    0 - 3.3V Biased   Neutral Current (I_N) sensor. 30A = 1V RMS.
+                                                                    Biased to Vref/2 (1.65V) with 10uF filter.
+                                                                    Used for differential Earth Leakage (RCD).
+
+2. DIGITAL ENVIRONMENTAL SENSOR INTERFACES
+--------------------------------------------------------------------------------
+STM32 Pin   Function      Sensor Component        Active Level      Circuit Configuration
+---------   -----------   ----------------        ------------      ---------------------
+PA1         GPIO Input    MQ Smoke Digital (D0)   Active LOW (0V)   Internal PULLUP enabled. Fast hardware
+                                                                    comparator alert from sensor breakout.
+
+PA2         GPIO Input    IR Flame Sensor (D0)    Active LOW (0V)   Internal PULLUP enabled. 760-1100 nm
+                                                                    photodiode detection. Debounced (0.3s).
+
+PB9         GPIO          DHT22 / AM2302          One-wire data     Digital data; pull-up to 3.3V required
+                                                                    (many modules include one). Polled no
+                                                                    faster than once every 2 seconds.
+
+3. SAFETY ACTUATORS, INTERLOCKS & AUDIBLE ALARMS
+--------------------------------------------------------------------------------
+STM32 Pin   Function      Actuator Device         Active State      Safety / Interlock Invariant
+---------   -----------   ---------------         ------------      ----------------------------
+PB0         GPIO Output   Solid State Relay CH1   Active HIGH (3.3V) Aerosol Suppression Igniter.
+                          (Suppression Igniter)                     Pulled LOW on boot. Fires aerosol canister
+                                                                    upon confirmed multi-sensor fire event.
+
+PB1         GPIO Output   Solid State Relay CH2   HIGH = CLOSED     Mains Power Interlock / Disconnect.
+                          (Mains AC Breaker SSR)  LOW  = OPEN (TRIP) Fail-safe: Boot default is LOW (OPEN).
+                                                                    Automatic close inhibited while the
+                                                                    Vbus monitor is absent.
+                                                                    Trips OPEN instantly on Fire, Arc Fault,
+                                                                    or Residual Shock / Earth Leakage (>300mA).
+
+PA6         GPIO Output   Audible Piezo Buzzer    Active HIGH (3.3V) Push-Pull output. Drives local transistor/
+                                                                    MOSFET buzzer stage. Pulses on warning,
+                                                                    continuous sound on alarm / fire latch.
+
+4. INTER-MCU & FIELDBUS COMMUNICATIONS
+--------------------------------------------------------------------------------
+STM32 Pin   Function      Peripheral / Signal     Connected To      Protocol Specification
+---------   -----------   -------------------     ------------      ----------------------
+PA9         USART1_TX     AF1 USART1 TX           ESP32 GPIO 16 RX  Direct UART, 115200 baud, 8N1.
+                                                                    Transmits TELE, ANL, ALERT, ACK frames.
+
+PA10        USART1_RX     AF1 USART1 RX           ESP32 GPIO 17 TX  Direct UART, 115200 baud, 8N1.
+                                                                    Receives framed $CMD commands.
+
+PB6         USART1_TX     AF0 USART1 TX (Mirror)  RS-485 DI         Mirrored UART output for external RS-485
+                                                                    Separate RS-485 transmit mirror; DE is
+                                                                    asserted during transmission.
+
+PA3         USART2_RX     AF1 USART2 RX           RS-485 RO         Separate RS-485 receive pin; current
+                                                                    firmware drains/discards received bytes.
+
+PA8         GPIO Output   Push-Pull               RS-485 DE + /RE   RS-485 transceiver direction control.
+                                                                    HIGH = Transmit, LOW = Receive (default).
+
+5. IN-SYSTEM PROGRAMMING & DEBUG PORTS
+--------------------------------------------------------------------------------
+STM32 Pin   Signal Name   Connected To            Function
+---------   -----------   ------------            --------
+PF4 / BOOT0 BOOT0         ESP32 GPIO 4            Hardware bootloader selector. Driven HIGH by ESP32 during
+                                                  OTA flashing to activate STM32 internal ROM UART bootloader.
+
+NRST        NRST          ESP32 GPIO 5 & RST Btn  Active-LOW Master Hardware Reset. Pulled up internally.
+
+PA13        SWDIO         ST-LINK V2 Pin 4        Serial Wire Debug Data (SWD flashing / debugging).
+PA14        SWCLK         ST-LINK V2 Pin 2        Serial Wire Debug Clock (SWD clock).
+
+6. POWER & REFERENCE RAILS
+--------------------------------------------------------------------------------
+STM32 Pin   Rail Name     Voltage Level           Filtering & Connection Requirements
+---------   ---------     -------------           -----------------------------------
+VDD         3V3           3.30V DC (+/- 2%)       Clean MCU core rail. 100nF ceramic cap per VDD pin.
+VDDA        3V3_A         3.30V DC (Filtered)     Analog domain supply. Decoupled via ferrite bead + 1uF + 10nF.
+VREF+       VREF+         3.30V DC (Precision)    ADC reference voltage. Pinned to VDDA.
+VSS / VSSA  GND           0V Reference            Common analog and digital star-ground plane.
+
+7. HARDWARE SAFETY PROTOCOL
+--------------------------------------------------------------------------------
+- Never alter PB0 (Aerosol Igniter) or PB1 (Mains SSR) routing without full isolation testing.
+- High-voltage AC (110-240V) connects EXCLUSIVELY to ZMPT101B primary and SSR contact terminals.
+  Maintain minimum 6.3 mm creepage and clearance to all MCU signal traces.
+- Current transformers SCT-013-030A feature internal burden resistors with 1V RMS output at 30A.
+  Do NOT use bare-current (mA output) CTs without calculating and installing external burdens.
+================================================================================

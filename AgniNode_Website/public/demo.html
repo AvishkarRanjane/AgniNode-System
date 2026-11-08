@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgniNode Interactive Demo Dashboard | Safety & Fault Simulator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <style>
+      .scope-container {
+        position: relative;
+        width: 100%;
+        height: 220px;
+        background: rgba(10, 2, 4, 0.85);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-top: 14px;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+      }
+      canvas.scope-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .scope-overlay {
+        position: absolute;
+        top: 10px;
+        left: 14px;
+        display: flex;
+        gap: 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+        pointer-events: none;
+      }
+      .badge-live-pulse {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .badge-live-pulse::before {
+        content: '';
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 10px #10b981;
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.4;
+          transform: scale(1.2);
+        }
+      }
+      .demo-notice-bar {
+        background: rgba(229, 9, 20, 0.12);
+        border-bottom: 1px solid rgba(229, 9, 20, 0.3);
+        padding: 8px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: #fca5a5;
+      }
+      .demo-notice-bar a {
+        color: #fff;
+        font-weight: 700;
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-notice-bar">
+      <span
+        ><strong>Demo Mode:</strong> Interactive physics-accurate software simulation of STM32
+        hardware and sensor inputs.</span
+      >
+      <a href="login.html">Sign In for Live Physical Hardware Console →</a>
+    </div>
+
+    <header>
+      <h1>
+        <a href="index.html">Agni<span>Node</span></a> Demo Console
+      </h1>
+      <nav class="nav-back-links">
+        <a href="index.html">Overview</a>
+        <a href="hardware.html">Hardware Architecture</a>
+        <a href="technology.html">Technology</a>
+        <a href="compare.html">Comparison</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+      <span class="badge-live-pulse">Simulator Active</span>
+      <a
+        class="btn btn-primary"
+        href="login.html"
+        style="padding: 8px 16px; font-size: 13px; text-decoration: none"
+      >
+        Hardware Login
+      </a>
+    </header>
+
+    <div id="app">
+      <!-- System Alert Banner -->
+      <div id="banner" data-s="NORMAL">
+        <div>
+          <h2 id="bS">Normal — All Systems Monitored & Safe</h2>
+          <div class="sub" id="bSub">
+            STM32 64MHz decision engine active. Waveform sampling 12.8 kHz, 3.2x divider scaling
+            applied.
+          </div>
+        </div>
+        <div
+          class="banner-actions"
+          style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap"
+        >
+          <button
+            class="btn btn-alarm-toggle"
+            id="alarmToggle"
+            title="Trigger or silence test alarm"
+          >
+            <span>Test Alarm Siren</span>
+          </button>
+          <button
+            class="btn ghost btn-audio-mute"
+            id="btnAudioMute"
+            title="Toggle audible siren sound"
+          >
+            <span id="txtAudioMute">Sound On</span>
+          </button>
+        </div>
+      </div>
+
+      <main>
+        <!-- Fault Injection Simulation Toolbar -->
+        <div class="panel sim-panel">
+          <div class="sim-header">
+            <div class="sim-title">
+              <span class="sim-icon">⚡</span>
+              <div>
+                <strong>Interactive Hardware Fault Injection</strong>
+                <div class="cap">
+                  Inject real electrical and thermal failure modes to test STM32 autonomous
+                  protection in real time.
+                </div>
+              </div>
+            </div>
+            <div class="sim-actions" id="simActions">
+              <button class="sim-btn active" id="btnSimNormal" data-mode="NORMAL">
+                <span>Normal Operating</span>
+              </button>
+              <button class="sim-btn" id="btnSimArc" data-mode="ARC">
+                <span>⚡ Simulate Arc Fault (PA0)</span>
+              </button>
+              <button class="sim-btn" id="btnSimFire" data-mode="FIRE">
+                <span>🔥 Simulate Fire Hazard (PA1/PB14/PA8)</span>
+              </button>
+              <button class="sim-btn" id="btnSimShock" data-mode="SHOCK">
+                <span>⚠️ Simulate Shock Sag (&lt;180V)</span>
+              </button>
+              <button class="sim-btn" id="btnSimSurge" data-mode="SURGE">
+                <span>📈 Simulate Surge Spike (&gt;260V)</span>
+              </button>
+              <button class="sim-btn sim-reset" id="btnSimReset">
+                <span>↺ Re-Arm Breaker & Reset</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time 60 FPS Oscilloscope Waveform Panel -->
+        <div class="panel" style="margin-bottom: 24px">
+          <div class="kpi-top">
+            <h3>PA0 Conditioned Mains AC Waveform (ZMPT101B Oscilloscope)</h3>
+            <span class="sensor-tag tag-volt">12.8 kHz Real-Time Sampling</span>
+          </div>
+          <div class="scope-container">
+            <canvas id="scopeCanvas" class="scope-canvas" width="800" height="220"></canvas>
+            <div class="scope-overlay">
+              <span id="scopeVrms">V_RMS: 230.4 V</span>
+              <span id="scopeFreq">Freq: 50.0 Hz</span>
+              <span id="scopeHf">HF Noise: 1.8 counts</span>
+              <span id="scopeStatus">Waveform: PURE SINE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Primary Physical Sensor KPI Cards (Matching Exact Wiring) -->
+        <div class="row kpis">
+          <!-- Sensor 1: ZMPT101B AC Voltage (PA0 via 220/100 ohm divider) -->
+          <div class="panel kpi" id="cardVolt">
+            <div class="kpi-top">
+              <h3>AC Line Voltage (PA0)</h3>
+              <span class="sensor-tag tag-volt">ZMPT101B • 3.2x Divider</span>
+            </div>
+            <div class="v" id="kV">230.5 V</div>
+            <div class="bar"><i id="bV" style="width: 75%"></i></div>
+            <div class="cap" id="cV">Nominal Grid RMS • Safe Range (180V - 260V)</div>
+          </div>
+
+          <!-- Sensor 2: MQ-2 Smoke & Gas (PA1 Analog + PB0 Digital) -->
+          <div class="panel kpi" id="cardSmoke">
+            <div class="kpi-top">
+              <h3>Smoke Level (PA1 & PB0)</h3>
+              <span class="sensor-tag tag-smoke">MQ-2 AO + DO</span>
+            </div>
+            <div class="v" id="kS">0.82 V</div>
+            <div class="bar"><i id="bSBar" style="width: 16%"></i></div>
+            <div class="cap" id="cS">Analog: 0.82V (True) • DO: 0 (Normal / Safe)</div>
+          </div>
+
+          <!-- Sensor 3: Temperature Sensor (PA8) -->
+          <div class="panel kpi" id="cardTemp">
+            <div class="kpi-top">
+              <h3>Temperature (PA8)</h3>
+              <span class="sensor-tag tag-temp">Thermal Sensor</span>
+            </div>
+            <div class="v" id="kT">28.4 °C</div>
+            <div class="bar"><i id="bT" style="width: 28%"></i></div>
+            <div class="cap" id="cT">Rate: +0.1 °C/min • Threshold: &gt; 55.0 °C</div>
+          </div>
+
+          <!-- Sensor 4: Flame Optical Sensor (PB14) -->
+          <div class="panel kpi" id="cardFlame">
+            <div class="kpi-top">
+              <h3>Optical Flame IR (PB14)</h3>
+              <span class="sensor-tag tag-flame">Digital IR Receiver</span>
+            </div>
+            <div class="v" id="kF" style="color: #10b981">CLEAR (1)</div>
+            <div class="bar"><i id="bF" style="width: 100%; background: #10b981"></i></div>
+            <div class="cap" id="cF">Active LOW logic • No flame radiation detected</div>
+          </div>
+        </div>
+
+        <!-- Protection Actuator Status Row -->
+        <div class="row kpis" style="margin-top: 18px">
+          <!-- SSR Circuit Breaker (PB13 Open-Drain) -->
+          <div class="panel kpi" id="cardSsr">
+            <div class="kpi-top">
+              <h3>Solid State Relay (PB13)</h3>
+              <span class="sensor-tag tag-ssr">Open-Drain Fail-Safe</span>
+            </div>
+            <div class="v" id="kSsr" style="color: #10b981">ENERGIZED / CLOSED</div>
+            <div class="bar"><i id="bSsr" style="width: 100%; background: #10b981"></i></div>
+            <div class="cap" id="cSsr">
+              Mains load active. In Open-Drain High-Z safe conduction.
+            </div>
+          </div>
+
+          <!-- Audible Alarm Buzzer (PB12) -->
+          <div class="panel kpi" id="cardBuzzer">
+            <div class="kpi-top">
+              <h3>Alarm Buzzer Siren (PB12)</h3>
+              <span class="sensor-tag tag-buzzer">Active-High Output</span>
+            </div>
+            <div class="v" id="kBuzzer" style="color: #64748b">SILENT (0)</div>
+            <div class="bar"><i id="bBuzzer" style="width: 0%"></i></div>
+            <div class="cap" id="cBuzzer">No active emergency audible alert.</div>
+          </div>
+
+          <!-- Autonomous Safety Verdict -->
+          <div class="panel kpi">
+            <div class="kpi-top">
+              <h3>STM32 Autonomous Safety</h3>
+              <span class="sensor-tag tag-mcu">Core Safety MCU</span>
+            </div>
+            <div class="v" id="kSafety" style="color: #10b981">ALL CLEAR</div>
+            <div class="bar"><i id="bSafety" style="width: 100%; background: #10b981"></i></div>
+            <div class="cap" id="cSafety">
+              Zero faults detected. Instant autonomous response armed.
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry Packet Inspector -->
+        <div class="panel" style="margin-top: 24px">
+          <div class="kpi-top">
+            <h3>STM32 ➔ ESP32 UART Telemetry Frame (500ms Cycle)</h3>
+            <span class="sensor-tag tag-uart">JSON @ 115200 Baud</span>
+          </div>
+          <pre
+            id="jsonPreview"
+            style="
+              background: rgba(0, 0, 0, 0.6);
+              padding: 14px 18px;
+              border-radius: 8px;
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 13px;
+              color: #10b981;
+              overflow-x: auto;
+              margin-top: 10px;
+            "
+          ></pre>
+        </div>
+      </main>
+    </div>
+
+    <script src="js/demo.js"></script>
+  </body>
+</html>

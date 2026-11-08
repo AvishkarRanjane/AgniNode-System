@@ -1,0 +1,86 @@
+================================================================================
+AGNI-NODE COMPANION GATEWAY - ESP32 HARDWARE PIN CONNECTIONS & SPECIFICATION
+Target MCU: Espressif ESP32 Dev Module (ESP32-WROOM-32E / ESP-WROOM-32)
+Clock: 240 MHz Dual-Core Tensilica Xtensa LX6 | 320 KB SRAM | 4 MB SPI Flash
+Operating Voltage: 3.3V DC Logic (5V tolerant via VIN pin onboard LDO regulator)
+Firmware Framework: Arduino on Espressif32 (PlatformIO env: esp32gw)
+================================================================================
+
+USER-REPORTED CURRENT WIRING (provided by user; not physically verified)
+--------------------------------------------------------------------------------
+Connection             ESP32 Pin / Rail    Connected To
+---------------------- ------------------  -------------------------------
+3.3V power             3V3                 3.3V rail
+Ground                 GND                 GND rail
+UART receive            GPIO 16 (RX2)       STM32 PA9 (USART1 TX)
+UART transmit           GPIO 17 (TX2)       STM32 PA10 (USART1 RX)
+
+The reported UART wiring matches the firmware pin assignments below. UART must
+be crossed (ESP32 RX to STM32 TX and ESP32 TX to STM32 RX), with a shared ground.
+The ESP32 GPIOs use 3.3V logic and are not 5V tolerant. The 3V3 rail connection
+is recorded as reported; ensure the boards' power sources are compatible and do
+not tie together competing regulator outputs.
+
+1. INTER-MICROCONTROLLER UART BRIDGE (STM32 <-> ESP32)
+--------------------------------------------------------------------------------
+ESP32 Pin     Function      Signal Name    Connected To (STM32)    Description
+---------     --------      -----------    --------------------    -----------
+GPIO 16       UART2 RX      STM_UART_RX    STM32 Pin PA9 (TX)      Serial data from STM32 (115200 8N1)
+                                                                   Receives $TLM, $ANL, $EVT, $ACK telemetry frames.
+                                                                   Internal RX ring buffer: 1024 bytes.
+
+GPIO 17       UART2 TX      STM_UART_TX    STM32 Pin PA10 (RX)     Serial commands to STM32 (115200 8N1)
+                                                                   Transmits $CMD frames (BUZZER, SSR, ARM, MAINS, PING).
+
+GND           Common GND    SYSTEM_GND     STM32 GND & PSU GND     Common ground reference (MANDATORY).
+
+2. STM32 HARDWARE IN-SYSTEM PROGRAMMING (OTA BOOTLOADER INTERFACE)
+--------------------------------------------------------------------------------
+ESP32 Pin     Function      Signal Name    Connected To (STM32)    Description
+---------     --------      -----------    --------------------    -----------
+GPIO 4        GPIO Output   STM_BOOT0      STM32 Pin PF4 / BOOT0   STM32 Hardware Boot Mode Selector
+                                                                   Driven HIGH by ESP32 during STM32 OTA update to
+                                                                   force STM32 into internal ROM UART bootloader.
+                                                                   Driven LOW during normal safety application boot.
+
+GPIO 5        Open-Drain    STM_NRST       STM32 NRST Pin          STM32 Hardware Reset Pin (Active-LOW)
+                                                                   ESP32 pulls LOW for 20ms to hard-reset STM32,
+                                                                   then releases pin to high-impedance (INPUT).
+                                                                   STM32 internal 40k pull-up holds line at 3.3V.
+
+3. USB-UART PROGRAMMING & DEBUG CONSOLE (DEFAULT ESP32 UART0)
+--------------------------------------------------------------------------------
+ESP32 Pin     Function      Signal Name    Connected To            Description
+---------     --------      -----------    --------------------    -----------
+GPIO 1        UART0 TX      TXD0 / DEBUG   Onboard CP2102/CH340    Serial Monitor / Flashing console (115200 baud).
+GPIO 3        UART0 RX      RXD0 / DEBUG   Onboard CP2102/CH340    Firmware flashing input via esptool.py.
+
+4. POWER SUPPLY & POWER DISTRIBUTION
+--------------------------------------------------------------------------------
+ESP32 Pin     Signal Name   Power Source   Voltage Requirements    Description
+---------     -----------   ------------   --------------------    -----------
+VIN (5V)      VCC_IN        Main 5V Rail   4.75V - 5.25V DC, >1A   Input to onboard AMS1117-3.3 regulator.
+                                                                   Must support Wi-Fi TX current peaks (up to 500mA).
+
+3V3           VCC_3V3       Regulator Out  3.3V DC (+/- 3%)        3.3V rail. Do not inject external voltage if 5V is supplied.
+
+GND           GND           System GND     0V Reference            Connects to common power ground, STM32 ground,
+                                                                   and sensor ground busses.
+
+5. WIRELESS NETWORK INTERFACES (ONBOARD RF PERIPHERALS)
+--------------------------------------------------------------------------------
+Interface     Antenna       Protocol       Bandwidth / Channel     Description
+---------     -------       --------       -------------------     -----------
+Wi-Fi         PCB Meander   802.11 b/g/n   2.4 GHz (CH 1-13)       Outbound HTTPS/TLS connection to Firebase.
+                                                                   TLS 1.2 RSA-2048/SHA256 pinned to certs/roots.pem.
+                                                                   Non-blocking reconnection with exponential backoff.
+
+6. ELECTRICAL CHARACTERISTICS & CONNECTION GUIDELINES
+--------------------------------------------------------------------------------
+- Signal Levels: Strictly 3.3V CMOS logic. Never connect 5V TTL logic directly to GPIO 16, 17, 4, or 5.
+- Trace Lengths: Keep UART lines (GPIO 16 <-> PA9, GPIO 17 <-> PA10) under 20 cm.
+  If running between separated enclosures, twist pair with GND or use RS-485 level shifters.
+- Reset Isolation: GPIO 5 MUST operate in open-drain mode (`pinMode(5, OUTPUT_OPEN_DRAIN)`) or remain in INPUT
+  mode when idle so it does not pull STM32 NRST line low during brownouts.
+- Decoupling: Ensure 100uF electrolytic + 100nF ceramic capacitors are installed near the ESP32 5V/VIN header.
+================================================================================

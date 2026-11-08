@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgniNode Live Hardware Console | IoT Safety & Protection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <style>
+      .scope-container {
+        position: relative;
+        width: 100%;
+        height: 220px;
+        background: rgba(10, 2, 4, 0.85);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-top: 14px;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+      }
+      canvas.scope-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .scope-overlay {
+        position: absolute;
+        top: 10px;
+        left: 14px;
+        display: flex;
+        gap: 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+        pointer-events: none;
+      }
+      .pill.online {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.3) !important;
+      }
+      .pill.alarm {
+        background: rgba(229, 9, 20, 0.2);
+        color: #ff4d5a;
+        border: 1px solid rgba(229, 9, 20, 0.4) !important;
+        animation: pulse 1s infinite;
+      }
+      .demo-switch-banner {
+        background: rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 8px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: var(--white-muted);
+      }
+      .demo-switch-banner a {
+        color: #fff;
+        font-weight: 700;
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-switch-banner">
+      <span>Connected to Live Production Hardware (ESP32 Gateway + STM32 MCU via Firebase).</span>
+      <a href="demo.html">Open Interactive Demo Dashboard (Simulator) →</a>
+    </div>
+
+    <header>
+      <h1>
+        <a href="index.html">Agni<span>Node</span></a> Hardware Console
+      </h1>
+      <nav class="nav-back-links">
+        <a href="index.html">Overview</a>
+        <a href="hardware.html">Hardware Architecture</a>
+        <a href="technology.html">Technology</a>
+        <a href="compare.html">Comparison</a>
+        <a href="demo.html">Demo Dashboard</a>
+      </nav>
+      <span class="pill" id="conn">Connecting to Cloud...</span>
+      <select id="devSel" aria-label="Device">
+        <option value="agninode-001">Device: agninode-001</option>
+      </select>
+      <span class="who" id="who">Operator</span>
+      <button id="out" class="btn btn-secondary btn-sm" style="padding: 6px 12px; font-size: 12px">
+        Sign out
+      </button>
+    </header>
+
+    <div id="app">
+      <!-- Real-Time Hardware Alert Banner -->
+      <div id="banner" data-s="NORMAL">
+        <div>
+          <h2 id="bS">Normal — Hardware Online & Monitored</h2>
+          <div class="sub" id="bSub">
+            Subscribed to live physical telemetry stream from STM32G0B1RE and ESP32 gateway.
+          </div>
+        </div>
+        <div
+          class="banner-actions"
+          style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap"
+        >
+          <button
+            class="btn btn-primary"
+            id="btnResetBreaker"
+            title="Re-arm SSR and clear latched faults on hardware"
+          >
+            <span>↺ Re-Arm Breaker & Reset</span>
+          </button>
+          <button class="btn btn-alarm-toggle" id="alarmToggle" title="Trip or test hardware alarm">
+            <span>Emergency Manual Trip</span>
+          </button>
+          <button
+            class="btn ghost btn-audio-mute"
+            id="btnAudioMute"
+            title="Toggle audio siren sound"
+          >
+            <span id="txtAudioMute">Sound On</span>
+          </button>
+          <button class="btn ghost hide" id="ack">Acknowledge</button>
+        </div>
+      </div>
+
+      <main>
+        <!-- Real-time 60 FPS Oscilloscope Waveform Panel -->
+        <div class="panel" style="margin-bottom: 24px">
+          <div class="kpi-top">
+            <h3>PA0 Conditioned Mains AC Waveform (ZMPT101B Oscilloscope)</h3>
+            <span class="sensor-tag tag-volt">Live Waveform Stream</span>
+          </div>
+          <div class="scope-container">
+            <canvas id="scopeCanvas" class="scope-canvas" width="800" height="220"></canvas>
+            <div class="scope-overlay">
+              <span id="scopeVrms">V_RMS: -- V</span>
+              <span id="scopeFreq">Freq: 50.0 Hz</span>
+              <span id="scopeHf">HF Noise: Normal</span>
+              <span id="scopeStatus">Status: SYNCHRONIZED</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Primary Physical Sensor KPI Cards (Matching Exact Wiring) -->
+        <div class="row kpis">
+          <!-- Sensor 1: ZMPT101B AC Voltage (PA0 via 220/100 ohm divider) -->
+          <div class="panel kpi" id="cardVolt">
+            <div class="kpi-top">
+              <h3>AC Line Voltage (PA0)</h3>
+              <span class="sensor-tag tag-volt">ZMPT101B • 3.2x Divider</span>
+            </div>
+            <div class="v" id="kV">-- V</div>
+            <div class="bar"><i id="bV" style="width: 0%"></i></div>
+            <div class="cap" id="cV">Waiting for telemetry from STM32...</div>
+          </div>
+
+          <!-- Sensor 2: MQ-2 Smoke & Gas (PA1 Analog + PB0 Digital) -->
+          <div class="panel kpi" id="cardSmoke">
+            <div class="kpi-top">
+              <h3>Smoke Level (PA1 & PB0)</h3>
+              <span class="sensor-tag tag-smoke">MQ-2 AO + DO</span>
+            </div>
+            <div class="v" id="kS">-- V</div>
+            <div class="bar"><i id="bSBar" style="width: 0%"></i></div>
+            <div class="cap" id="cS">Analog: -- V • DO: --</div>
+          </div>
+
+          <!-- Sensor 3: Temperature Sensor (PA8) -->
+          <div class="panel kpi" id="cardTemp">
+            <div class="kpi-top">
+              <h3>Temperature (PA8)</h3>
+              <span class="sensor-tag tag-temp">Thermal Sensor</span>
+            </div>
+            <div class="v" id="kT">-- °C</div>
+            <div class="bar"><i id="bT" style="width: 0%"></i></div>
+            <div class="cap" id="cT">Threshold: &gt; 55.0 °C</div>
+          </div>
+
+          <!-- Sensor 4: Flame Optical Sensor (PB14) -->
+          <div class="panel kpi" id="cardFlame">
+            <div class="kpi-top">
+              <h3>Optical Flame IR (PB14)</h3>
+              <span class="sensor-tag tag-flame">Digital IR Receiver</span>
+            </div>
+            <div class="v" id="kF">--</div>
+            <div class="bar"><i id="bF" style="width: 0%"></i></div>
+            <div class="cap" id="cF">Active LOW logic on PB14</div>
+          </div>
+        </div>
+
+        <!-- Protection Actuator Status Row -->
+        <div class="row kpis" style="margin-top: 18px">
+          <!-- SSR Circuit Breaker (PB13 Open-Drain) -->
+          <div class="panel kpi" id="cardSsr">
+            <div class="kpi-top">
+              <h3>Solid State Relay (PB13)</h3>
+              <span class="sensor-tag tag-ssr">Open-Drain Output</span>
+            </div>
+            <div class="v" id="kSsr">--</div>
+            <div class="bar"><i id="bSsr" style="width: 0%"></i></div>
+            <div class="cap" id="cSsr">Hardware load interlock status.</div>
+          </div>
+
+          <!-- Audible Alarm Buzzer (PB12) -->
+          <div class="panel kpi" id="cardBuzzer">
+            <div class="kpi-top">
+              <h3>Alarm Buzzer Siren (PB12)</h3>
+              <span class="sensor-tag tag-buzzer">Active-High Output</span>
+            </div>
+            <div class="v" id="kBuzzer">--</div>
+            <div class="bar"><i id="bBuzzer" style="width: 0%"></i></div>
+            <div class="cap" id="cBuzzer">Buzzer audio indicator on PB12.</div>
+          </div>
+
+          <!-- Autonomous Safety Verdict -->
+          <div class="panel kpi">
+            <div class="kpi-top">
+              <h3>Safety Fault Flags</h3>
+              <span class="sensor-tag tag-mcu">Autonomous Decisions</span>
+            </div>
+            <div class="v" id="kSafety">--</div>
+            <div class="bar"><i id="bSafety" style="width: 0%"></i></div>
+            <div class="cap" id="cSafety">Fire: -- • Arc Fault: -- • Shock: --</div>
+          </div>
+        </div>
+
+        <!-- Live Raw Telemetry Packet Viewer -->
+        <div class="panel" style="margin-top: 24px">
+          <div class="kpi-top">
+            <h3>Live Ingested Telemetry Document (Firebase Realtime Sync)</h3>
+            <span class="sensor-tag tag-uart" id="lastUpdatedTag">Sync: waiting...</span>
+          </div>
+          <pre
+            id="jsonPreview"
+            style="
+              background: rgba(0, 0, 0, 0.6);
+              padding: 14px 18px;
+              border-radius: 8px;
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 13px;
+              color: #10b981;
+              overflow-x: auto;
+              margin-top: 10px;
+            "
+          >
+Waiting for first live payload from device...</pre>
+        </div>
+      </main>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/dashboard.js"></script>
+  </body>
+</html>

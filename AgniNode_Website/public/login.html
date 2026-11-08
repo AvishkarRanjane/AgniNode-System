@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign In | AgniNode Hardware Console</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="css/site.css" />
+    <style>
+      .auth-page {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        position: relative;
+        background: radial-gradient(circle at 50% 20%, rgba(229, 9, 20, 0.15) 0%, #070203 70%);
+      }
+      .auth-card {
+        width: 100%;
+        max-width: 480px;
+        background: rgba(28, 8, 12, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow:
+          0 20px 50px rgba(0, 0, 0, 0.8),
+          0 0 40px rgba(229, 9, 20, 0.15);
+        backdrop-filter: blur(24px);
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      .auth-input {
+        width: 100%;
+        padding: 14px 18px;
+        background: rgba(0, 0, 0, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        color: #fff;
+        font-family: inherit;
+        font-size: 14px;
+        transition: all 0.2s ease;
+      }
+      .auth-input:focus {
+        outline: none;
+        border-color: #ff1e2d;
+        box-shadow:
+          0 0 0 2px rgba(255, 30, 45, 0.3),
+          0 0 20px rgba(255, 30, 45, 0.25);
+      }
+      .auth-err {
+        color: #ff4d5a;
+        font-size: 13px;
+        min-height: 20px;
+        margin: 0;
+      }
+      .demo-cta-box {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 18px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .demo-cta-btn {
+        display: block;
+        width: 100%;
+        padding: 12px 18px;
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 8px;
+        color: #10b981;
+        font-weight: 700;
+        font-size: 14px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+      }
+      .demo-cta-btn:hover {
+        background: rgba(16, 185, 129, 0.25);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
+      }
+    </style>
+  </head>
+  <body class="auth-page">
+    <div style="margin-bottom: 24px">
+      <a class="logo-brand" href="index.html" aria-label="AgniNode Home">
+        <div class="logo-flame" aria-hidden="true">
+          <img
+            src="assets/images/agninode-logo-mark-white.png"
+            alt="AgniNode Logo"
+            class="logo-mark-img"
+          />
+        </div>
+        <span class="logo-text">Agni<span>Node</span></span>
+      </a>
+    </div>
+
+    <main class="auth-card">
+      <div>
+        <h1 style="font-size: 24px; color: #fff; margin: 0 0 8px 0">Hardware Console Sign In</h1>
+        <p style="font-size: 13px; color: var(--text-muted); margin: 0">
+          Connect directly to live STM32 safety telemetry, ZMPT101B mains voltage, and breaker
+          interlocks.
+        </p>
+      </div>
+
+      <!-- Live Hardware Authentication Form -->
+      <form id="real" style="display: flex; flex-direction: column; gap: 16px">
+        <div>
+          <label
+            style="display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px"
+          >
+            Operator Email Address
+          </label>
+          <input
+            class="auth-input"
+            id="em"
+            type="email"
+            placeholder="mr.avishkarranjane07@gmail.com"
+            autocomplete="username"
+            required
+            aria-label="Email"
+          />
+        </div>
+        <div>
+          <label
+            style="display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px"
+          >
+            Password
+          </label>
+          <input
+            class="auth-input"
+            id="pw"
+            type="password"
+            placeholder="••••••••••••"
+            autocomplete="current-password"
+            required
+            aria-label="Password"
+          />
+        </div>
+        <button
+          class="btn btn-primary"
+          type="submit"
+          style="width: 100%; padding: 13px; font-weight: 700"
+        >
+          Sign In to Hardware Console
+        </button>
+        <button
+          class="linkbtn"
+          type="button"
+          id="reset"
+          style="
+            font-size: 13px;
+            color: var(--text-dim);
+            text-align: center;
+            padding: 4px;
+            background: none;
+            border: none;
+            cursor: pointer;
+          "
+        >
+          Forgot password? Send reset email
+        </button>
+      </form>
+
+      <div class="demo-cta-box">
+        <span style="font-size: 12px; color: #cbd5e1"
+          >Don't have hardware plugged in right now?</span
+        >
+        <a href="demo.html" class="demo-cta-btn">
+          ⚡ Launch Interactive Demo Dashboard (No Login Needed) →
+        </a>
+      </div>
+
+      <p class="auth-err" id="err" role="alert"></p>
+
+      <div style="text-align: center; padding-top: 6px">
+        <a href="index.html" style="font-size: 13px; color: var(--text-muted)"
+          >← Back to Overview</a
+        >
+      </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/login.js"></script>
+  </body>
+</html>

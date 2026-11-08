@@ -1,0 +1,5 @@
+include/secrets.h
+certs/roots.pem
+.pio/
+.vscode/
+*.log
